@@ -1,379 +1,267 @@
-//BT20CSE052-Siddheshkumar Jain
-//CPL-3 Assignment
-
 #include<stdio.h>
-#include<string.h>
 #include<stdlib.h>
-
-struct free_list{
-    struct free_list* next;             //Pointer to next free block
-    struct free_list* prev;             //Pointer to prev free block
-    int size;                           //Size of free block
-    int start;                          //Starting point of free block
-};
-
-struct allocated_list{
-    struct allocated_list* next;        //Pointer to next allocated block
-    struct allocated_list* prev;        //Pointer to previous allocated block
-    int size;                           //Size of process that is allocated 
-    int start;                          //Starting point of allocated block
-    char processID[30];                 //ID of allocated  block
-};
-
-struct free_list* FreeListHead;         //head of free list
-struct allocated_list* allocatedHead;   //head of allocated process list
-int HEAPSIZE = 3000;                    //Heap storage available
-
-void allocate_memory();
-void deallocate_memory(char []);
-void merge_free_list(struct free_list*);
-void check_ID(char []);
-void print_allocated_list();
-void print_free_list();
-
-int main()
+#include<string.h>
+#define name_size 10
+#define SIZE 2000
+typedef struct free_list
 {
-    int choice=1;
-    char processID[30];
-    
-    FreeListHead = (struct free_list*)malloc(sizeof(struct free_list));
-    FreeListHead->next = FreeListHead->prev = NULL;
-    FreeListHead->size = HEAPSIZE;
-    FreeListHead->start = 0;
-    allocatedHead = NULL;
-    
-    printf("------------------------------------------------------------------------------------------------\n");
-    printf("\t Memory allocation using FIRST FIT STRATEGY with memory of 3000 units available.\n");
-    printf("\t Please take care that memory asked for allocation is in integer format.\n");
-    printf("------------------------------------------------------------------------------------------------\n\n");
-    
-    do
-    {
-        printf("Choose any one of the following options\n\n");
-        printf("1. Allocate Memory\n");
-        printf("2. Deallocate Memory\n");
-        printf("3. Allocated memory status\n");
-        printf("4. Free list status\n");
-        printf("0: EXIT\n");
-        printf("Enter your choice: ");
-        scanf("%d",&choice);
-        switch(choice)
-        {
-            
-            case 1:
-                allocate_memory();
-                break;
-                
-            case 2:
-                printf("Please enter the ID of the process to be deallocated from heap memory: ");
-                scanf("%s",processID);
-                deallocate_memory(processID);
-                break;
-            
-            case 3:
-                print_allocated_list();
-                break;
-                
-            case 4:
-                print_free_list();
-                break;
-                
-            case 0:
-                break;    
-
-            default:
-                printf("Wrong option entered\n");
-                break;
-                
-        }
-        
-        printf("-------------------------------------------------------------------------------------------\n");
-        printf("Live Status\n");
-        printf("\nAllocated List is :\n");
-        print_allocated_list();
-        printf("\nFree List is :\n");
-        print_free_list();
-        printf("--------------------------------------------------------------------------------------------\n");
-        
-        
-    }while(choice!=0);
-    
-    return 0;
-
-}
-
-void allocate_memory()
+    int start;
+	int size;
+    struct free_list* next;
+    struct free_list* prev;
+} free_Node;
+typedef struct alloc_blocks
 {
-    int processMemory;                          //To keep track of size to be allocated
-    char processID[30];                         //Labelling block
-    
-    printf("Enter size you want to allocate : ");
-    scanf("%d", &processMemory);
-    printf("Enter the process ID: ");
-    scanf("%s", processID);
-    
-    check_ID(processID);
-    struct free_list* freeTemp = FreeListHead;
-    
-    /* Traverse till freeTemp->size< processMemory ,
-        as we are using First-fit alogrith      */
-        
-    while (freeTemp!=NULL && freeTemp->size<processMemory)  
-    {
-        freeTemp = freeTemp->next;
-    }
-    
-    /* If we reach end of list but can't find suitable free memory block */
-    
-    if (freeTemp == NULL)                            
-    {
-        printf("\n!!Memory can't be allocated!!\n\n");
-    }
-    else
-    {
-
-        /* If size of free list block is greater than required process size,
-           It means free list block will be there with reduced size(freeTemp->size - processMemory) */
-        
-        if (freeTemp->size - processMemory > 0)
-        {
-            struct free_list* temp = (struct free_list*)malloc(sizeof(struct free_list)); 
-            temp->start = freeTemp->start + processMemory;
-            temp->next = NULL;
-            temp->prev = NULL;
-        
-            if (freeTemp == FreeListHead)
-            {
-                temp->next = FreeListHead->next;
-                FreeListHead = temp;
-            }
-            else
-            {
-                (freeTemp->prev)->next = temp;
-                temp->next = freeTemp->next;
-                temp->prev = freeTemp->prev;
-                if(freeTemp->next)
-                {
-                    freeTemp->next->prev = temp;
-                }
-            }
-            temp->size = freeTemp->size - processMemory;
-        }
-        else
-        {   /*If size of free block equals required size,
-              It means we free list block should be deleted */
-              
-            if (freeTemp->prev)
-            {
-                freeTemp->prev->next = freeTemp->next;
-                if(freeTemp->next)
-                {
-                    freeTemp->next->prev = freeTemp->prev;
-                }
-            }
-            else
-            {
-                FreeListHead = freeTemp->next;
-                if(FreeListHead)
-                {
-                    FreeListHead->prev = NULL;
-                }
-            }
-            
-        }
-
-        /* Allocating memory and adding node in allocated list */
-
-        struct allocated_list* alloc_temp = (struct allocated_list*)malloc(sizeof(struct allocated_list));
-        alloc_temp->next = NULL;
-        alloc_temp->prev = NULL;
-        alloc_temp->size = processMemory;
-        strcpy(alloc_temp->processID , processID);
-        alloc_temp->start = freeTemp->start;
-        free(freeTemp);
-        
-        /* If allocated node is first one */
-        
-        if (allocatedHead == NULL)
-        {
-            allocatedHead = alloc_temp;
-        }
-        else
-        {
-            struct allocated_list* temp = allocatedHead;
-            
-            /* Finding the position where to allocate */
-            
-            while (temp->next && temp->start < alloc_temp->start)
-            {
-                temp = temp->next;
-            }
-            
-            if (temp == allocatedHead && temp->start > alloc_temp->start)   // If node is to be allocated at first position itself 
-            {
-                alloc_temp->next = temp;
-                temp->prev = alloc_temp;
-                allocatedHead = alloc_temp;
-            }
-            else if (temp->next == NULL && temp->start < alloc_temp->start)  // If node is to be allocated at last position itself 
-            {
-                temp->next = alloc_temp;
-                alloc_temp->prev = temp;
-                alloc_temp->next = NULL;
-            }
-            else                                                            // If node is to be allocated in between
-            {
-                (temp->prev)->next = alloc_temp;
-                alloc_temp->prev = temp->prev;
-                alloc_temp->next = temp;
-                temp->prev = alloc_temp;
-            }
-        }
-        printf("Allocated from index: %d to %d \n" ,alloc_temp->start ,alloc_temp->start + alloc_temp->size-1);
-    }
-    return;
-}
-
-void deallocate_memory(char processID[])
+    char name[name_size];
+    int start;
+	int size;
+    struct alloc_blocks* next;
+    struct alloc_blocks* prev;
+} alloc_list;
+free_Node  *fptr;
+alloc_list *alptr;
+void allocate(char*,int);
+void print_BothLists();
+void deallocate(alloc_list*,char *);
+alloc_list* allocatethenode(alloc_list*,alloc_list*);
+void deallocate(alloc_list *ptr,char *name)
 {
-    struct allocated_list* allocateTemp = allocatedHead;
-    while (allocateTemp!=NULL && strcmp(allocateTemp->processID ,processID))             // Finding node with given processID 
+    while (ptr)
     {
-        allocateTemp = allocateTemp->next;
+        if(strcmp(ptr->name,name)==0)
+         break;
+        ptr = ptr->next;
     }
-    if (allocateTemp == NULL)
+    if (ptr == NULL)
     {
         printf("Not found\n");
     }
     else
     {
-        /* the node that is to be inserted in freelist after being deallocated */
-        
-        struct free_list* fptr = (struct free_list*)malloc(sizeof(struct free_list));
-        fptr->next = NULL;
-        fptr->prev = NULL;
-        fptr->size = allocateTemp->size;
-        fptr->start = allocateTemp->start;
-        
-        if (allocateTemp == allocatedHead)                           //If memory to be deallocated is first node itself
-        {
-            allocatedHead = allocateTemp->next;
-        }
+        free_Node* pptr =(free_Node*)malloc(sizeof(free_Node));
+        pptr->next=pptr->prev = NULL;
+        pptr->size =ptr->size;
+        pptr->start =ptr->start;
+        if (ptr == alptr)
+            alptr = ptr->next;
         else
         {
-            allocateTemp->prev->next = allocateTemp->next;
-            if (allocateTemp->next)
-            {
-                allocateTemp->next->prev = allocateTemp->prev;
-            }
+            ptr->prev->next = ptr->next;
+            if (ptr->next)
+                ptr->next->prev = ptr->prev;
         }
-        
-        struct free_list* temp = FreeListHead;
-        if (FreeListHead == NULL)
-        {
-            FreeListHead = fptr;
-        }
+        free_Node* t =fptr;
+        if (fptr == NULL)
+            fptr=pptr;
         else
         {
-            while (temp && temp->next && temp->start < fptr->start)
+            while (t && t->next && t->start <pptr->start)
             {
-                temp = temp->next;
+                t= t->next;
             }
-    
-            if (temp && temp->next == NULL && temp->start < fptr->start)     //If freelist node is to be inserted at end
+            
+            if (t && t->next == NULL && t->start <pptr->start)
             {
-                temp->next = fptr;
-                fptr->prev = temp;
+                t->next = pptr;
+                pptr->prev = t;
             }
-            else                                                            //If freelist node is to be inserted at start
+            else
             {
-                if (temp && temp == FreeListHead)
+            if (t && t ==fptr)
                 {
-                    fptr->next = temp;
-                    temp->prev = fptr;
-                    FreeListHead = fptr;
+                    pptr->next = t;
+                    t->prev = pptr;
+                    fptr = pptr;
                 }
-                else if(temp)                                               //If freelist node is to be inserted in between
+                else if (t!=NULL)
                 {
-                    fptr->prev = temp->prev;
-                    temp->prev->next = fptr;
-                    temp->prev = fptr;
-                    fptr->next = temp;
+                    pptr->prev = t->prev;
+                    t->prev->next = pptr;
+                    t->prev = pptr;
+                    pptr->next = t;
                 }
 
             }
         }
-        merge_free_list(fptr);                                      //Merging continguous free blocks
-    }
-    return;
-}
-
-
-void merge_free_list(struct free_list* fptr)
-{
-    if(fptr->prev)                                                 //if previous node exists and is adjacent
+        free_Node*ptr=pptr;
+        if (ptr->prev!=NULL)
     {
-        if (fptr->prev->start + fptr->prev->size == fptr->start)
+        if (ptr->prev->start ==ptr->start-ptr->prev->size)
         {
-            fptr->prev->size = fptr->prev->size + fptr->size;
-            fptr->prev->next = fptr->next;
-            if(fptr->next)
+            ptr->prev->size=ptr->prev->size+ptr->size;
+            ptr->prev->next=ptr->next;
+            if(ptr->next!=NULL)
+            ptr->next->prev=ptr->prev;
+            free_Node* temp=ptr;
+            ptr=ptr->prev;
+            free(temp);
+        }
+    }
+    if (ptr->next!=NULL)
+    {
+        if (ptr->start== ptr->next->start-ptr->size)
+        {
+            ptr->size =ptr->size+ptr->next->size;
+            ptr->next =ptr->next->next;
+            if(ptr->next!=NULL)
+                ptr->next->prev = ptr;
+        }
+    }
+    }
+}
+alloc_list* allocatethenode(alloc_list *hptr,alloc_list *pptr)
+{
+    alloc_list *ptr, *pn;
+	pptr->next = pptr->prev = NULL;
+	if(hptr== NULL)	
+	    hptr=pptr;
+	else
+	{
+	    ptr =hptr;
+	    while(ptr->next != NULL )	
+	    {
+	        if(pptr->start>ptr->start)
+	        ptr = ptr->next;
+	    }
+	    
+	    if(ptr->next == NULL)  
+	    {
+	        if(pptr->start>ptr->start)
+	        {
+	        ptr->next = pptr;
+	        pptr->prev = ptr;
+	        }
+	    }
+	    else
+	    {
+	        if(ptr == hptr) 	
+			    hptr = pptr;
+	        pn=ptr->prev;
+	        if(pn != NULL)
+	            pn->next = pptr;
+	        pptr->prev = pn;
+	        pptr->next = ptr;
+	        ptr->prev = pptr;
+	    }
+	}
+	return hptr;
+}
+void allocate(char *name,int n)
+{
+    free_Node *ptr=fptr;
+    int status=0,temp=0;
+    alloc_list* check=alptr;
+    while(check!=NULL)
+     {
+         if(strcmp(check->name,name)==0)
+         {
+          temp=1;
+          break;
+          }
+         check=check->next;
+     }
+     if(temp==1)
+     printf("same block plz reenter\n");
+     else
+     {
+    while (!status && ptr!=NULL)
+    {
+        if(ptr->size<n)
+        ptr=ptr->next;
+        else
+        status=1;
+    }
+    if (status==0)
+        printf("\nnot enough space\n\n");
+    else
+    {
+        alloc_list *sptr=(alloc_list*)malloc(sizeof(alloc_list));
+        sptr->start=ptr->start;
+        sptr->size=n;
+        strcpy(sptr->name,name);
+        sptr->next=NULL;
+        sptr->prev=NULL;
+        alloc_list *optr=alptr;
+      alptr=allocatethenode(alptr,sptr);
+         ptr->start=ptr->start+n;
+	        ptr->size=ptr->size-n;
+	        int s=ptr->size;
+	        if(s==0)
+	        {
+	            if(ptr!= NULL)
             {
-                fptr->next->prev = fptr->prev;
+        free_Node *pn,*nn;
+        pn=ptr->prev;
+        nn=ptr->next;
+        if(pn != NULL) 
+            pn->next=nn;
+        else
+            fptr=nn;
+        if(nn!=NULL)  
+            nn->prev=pn;
+        free(ptr);
             }
-            fptr = fptr->prev;
-        }
+	        }
     }
-    if(fptr->next)                                             //If next node exists and is adjacent
+     }
+}
+void print_BothLists()
+{
+    alloc_list *aptr=alptr;
+    while(aptr!=NULL)
     {
-        if (fptr->start + fptr->size == fptr->next->start)
+        printf("ALLOCATED BLOCKS\n");
+        int x=aptr->start;
+        int y=aptr->start+aptr->size;
+        printf("%d to %d\n",x,y);
+        aptr=aptr->next;
+    }
+    free_Node* yptr=fptr;
+    while (yptr!=NULL)
+    {
+        
+        printf("FREE BLOCKS\n");
+         int x=yptr->start;
+        int y=yptr->start+yptr->size;
+        printf("%d to %d\n",x,y);
+        yptr=yptr->next;
+    }
+}
+int main()
+{
+    int choice;
+    fptr=(free_Node*)malloc(sizeof(free_Node));
+    fptr->start=0;
+    fptr->size=SIZE;
+    fptr->prev=NULL;
+    fptr->next=NULL;
+    printf("Memory available 1200\n\n");
+    choice=1;
+    while (choice!=0)
+    {
+        printf("1.Allocate \n2.Deallocate\n");
+        scanf("%d",&choice);
+        if(choice==1)
         {
-            fptr->size += fptr->next->size;
-            fptr->next = fptr->next->next;
-            if(fptr->next)
-            {
-                fptr->next->prev = fptr;
-            }
+            int n;
+            scanf("%d",&n);
+            char name[name_size];
+            scanf("%s",name);
+        allocate(name,n);
+        printf("HEAP\n");
+        print_BothLists();
         }
-    }
-    return;
-}
-
-void check_ID(char s[])
-{
-    int flag = 1;
-    struct allocated_list* allocateTemp = allocatedHead;
-    while (allocateTemp && flag)
-    {
-        if (strcmp(allocateTemp->processID , s)==0)
+        else if(choice==2)
         {
-            printf("\n!!Process with same ID found!!\nHence deallocating previous one\n");
-            deallocate_memory(s);
-            flag = 0;
+            char name[name_size];
+        printf("Enter tag of block you want to delete\n");
+        scanf("%s",name);
+        deallocate(alptr,name);
+        printf("HEAP\n");
+        print_BothLists();
         }
-        allocateTemp = allocateTemp->next;
+        else
+        printf("enter either 2 or 1\n");
+        printf("If you want to continue enter '1' else '0'\n");
     }
-    return;
-}
-
-void print_allocated_list()
-{
-    struct allocated_list* allocateTemp = allocatedHead;
-    while(allocateTemp)
-    {
-        printf("%4d <---> %4d for process with processID ---> %s \n",allocateTemp->start,allocateTemp->start + allocateTemp->size-1,allocateTemp->processID);
-        allocateTemp = allocateTemp->next;
-    }
-    return;
-}
-
-void print_free_list()
-{
-    struct free_list* freeTemp = FreeListHead;
-    while (freeTemp)
-    {
-        printf("%4d< ---> %4d \n",freeTemp->start,freeTemp->start + freeTemp->size-1);
-        freeTemp = freeTemp->next;
-    }
-    return;
 }
